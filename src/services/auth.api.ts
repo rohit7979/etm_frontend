@@ -24,6 +24,7 @@ export const registerUser = async (payload: RegisterPayload): Promise<AuthRespon
 };
 
 export const fetchMe = async (): Promise<User> => {
-  const { data } = await api.get<User>('/auth/me');
-  return data;
+  // Backend returns { user: { id, name, email, role } }
+  const { data } = await api.get<{ user: User }>('/auth/me');
+  return data.user;
 };

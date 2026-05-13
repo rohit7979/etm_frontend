@@ -26,7 +26,13 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const requestUrl: string = error.config?.url ?? '';
+    const isAuthEndpoint =
+      requestUrl.includes('/auth/login') || requestUrl.includes('/auth/register');
+
+    // Only force-redirect to login for 401s on protected routes,
+    // NOT when the login/register API itself returns 401 (wrong credentials).
+    if (error.response?.status === 401 && !isAuthEndpoint) {
       localStorage.removeItem('etm_token');
       window.location.href = '/login';
     }
