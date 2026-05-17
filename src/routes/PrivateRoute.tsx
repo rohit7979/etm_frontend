@@ -22,7 +22,7 @@ export const PrivateRoute = ({ children, allowedRole }: PrivateRouteProps) => {
   if (!user) return <Navigate to="/login" replace />;
 
   if (allowedRole && user.role !== allowedRole) {
-    const fallback = user.role === 'admin' ? '/admin/dashboard' : '/employee/my-trainings';
+    const fallback = user.role === 'admin' ? '/admin/dashboard' : '/employee/dashboard';
     return <Navigate to={fallback} replace />;
   }
 

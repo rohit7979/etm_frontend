@@ -1,44 +1,51 @@
 import { useEffect, useState } from 'react';
 import {
-  Users,
-  BookOpen,
-  ClipboardList,
-  TrendingUp,
-  Award,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  BarChart3,
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+} from 'recharts';
+import {
+  Users, BookOpen, ClipboardList, TrendingUp,
+  Award, CheckCircle2, AlertCircle, BarChart3,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import api from '@/lib/axios';
-import type { Training, Assignment, EmployeeProgress } from '@/types';
+import { fetchAdminDashboard, fetchAnalytics } from '@/services/user.api';
+import type { AdminDashboard, AnalyticsData } from '@/types';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface DashboardStats {
-  totalTrainings: number;
-  totalAssignments: number;
-  completedAssignments: number;
-  inProgressAssignments: number;
-  pendingAssignments: number;
-  totalEmployees: number;
-  avgCompletionRate: number;
-}
+// ─── Palette ──────────────────────────────────────────────────────────────────
+const COLOR = {
+  indigo: '#4f46e5',
+  violet: '#7c3aed',
+  green:  '#22c55e',
+  amber:  '#f59e0b',
+  red:    '#ef4444',
+  sky:    '#0ea5e9',
+  slate:  '#64748b',
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  completed:   COLOR.green,
+  in_progress: COLOR.amber,
+  pending:     COLOR.red,
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  completed:   'Completed',
+  in_progress: 'In Progress',
+  pending:     'Pending',
+};
+
+const BAR_COLORS = [COLOR.indigo, COLOR.sky, COLOR.violet, COLOR.amber, COLOR.green, COLOR.red];
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
-const StatCard = ({
-  label,
-  value,
-  icon: Icon,
-  color,
-  sub,
-}: {
+interface StatCardProps {
   label: string;
   value: string | number;
   icon: React.ElementType;
   color: string;
   sub?: string;
-}) => (
+}
+
+const StatCard = ({ label, value, icon: Icon, color, sub }: StatCardProps) => (
   <div className="adm-stat-card">
     <div className="adm-stat-icon-wrap" style={{ background: color + '18', color }}>
       <Icon size={22} />
@@ -51,85 +58,71 @@ const StatCard = ({
   </div>
 );
 
-// ─── Status Badge ─────────────────────────────────────────────────────────────
-const StatusBadge = ({ status }: { status: string }) => {
-  const map: Record<string, { label: string; cls: string }> = {
-    completed: { label: 'Completed', cls: 'badge-success' },
-    in_progress: { label: 'In Progress', cls: 'badge-warning' },
-    pending: { label: 'Pending', cls: 'badge-muted' },
-  };
-  const s = map[status] ?? { label: status, cls: 'badge-muted' };
-  return <span className={`adm-badge ${s.cls}`}>{s.label}</span>;
+// ─── Chart Card wrapper ───────────────────────────────────────────────────────
+const ChartCard = ({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: React.ElementType;
+  title: string;
+  children: React.ReactNode;
+}) => (
+  <div className="adm-card">
+    <div className="adm-card-header">
+      <Icon size={17} className="adm-card-icon" />
+      <h2 className="adm-card-title">{title}</h2>
+    </div>
+    {children}
+  </div>
+);
+
+// ─── Custom Tooltip for Pie ───────────────────────────────────────────────────
+const PieTooltip = ({ active, payload }: { active?: boolean; payload?: { name: string; value: number }[] }) => {
+  if (!active || !payload?.length) return null;
+  const { name, value } = payload[0];
+  return (
+    <div className="adm-tooltip">
+      <p className="adm-tooltip-label">{STATUS_LABELS[name] ?? name}</p>
+      <p className="adm-tooltip-value">{value} assignments</p>
+    </div>
+  );
 };
+
+// ─── Custom Legend for Pie ────────────────────────────────────────────────────
+const PieLegend = ({ data }: { data: { status: string; count: number }[] }) => (
+  <div className="adm-pie-legend">
+    {data.map((d) => (
+      <div key={d.status} className="adm-pie-legend-item">
+        <span className="adm-pie-legend-dot" style={{ background: STATUS_COLORS[d.status] }} />
+        <span className="adm-pie-legend-label">{STATUS_LABELS[d.status] ?? d.status}</span>
+        <span className="adm-pie-legend-count">{d.count}</span>
+      </div>
+    ))}
+  </div>
+);
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const AdminDashboardPage = () => {
   const { user } = useAuth();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [recentTrainings, setRecentTrainings] = useState<Training[]>([]);
-  const [recentAssignments, setRecentAssignments] = useState<Assignment[]>([]);
-  const [topEmployees, setTopEmployees] = useState<EmployeeProgress[]>([]);
+  const [dashboard, setDashboard] = useState<AdminDashboard | null>(null);
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    const fetchAll = async () => {
+    const load = async () => {
       try {
-        const [trainingsRes, assignmentsRes, progressRes, statsRes] = await Promise.all([
-          api.get<Training[]>('/trainings'),
-          api.get<{ count: number; assignments: Assignment[] }>('/assignments'),
-          api.get<{ summary: Array<{ employee: { name: string; email: string }; total: number; completed: number; completionRate: string }> }>('/assignments/progress'),
-          api.get<{ totalEmployees: number; totalAdmins: number; totalAssignments: number; completedAssignments: number; inProgressAssignments: number; pendingAssignments: number }>('/users/stats'),
-        ]);
-
-        const trainings: Training[] = trainingsRes.data;
-        const assignments: Assignment[] = assignmentsRes.data.assignments;
-        const summary = progressRes.data.summary;
-
-        const completed = assignments.filter((a) => a.status === 'completed').length;
-        const inProg = assignments.filter((a) => a.status === 'in_progress').length;
-        const pending = assignments.filter((a) => a.status === 'pending').length;
-        // Use accurate count from /users/stats (all registered employees, not just those with assignments)
-        const totalEmployees = statsRes.data.totalEmployees;
-        const avgRate =
-          summary.length > 0
-            ? Math.round(
-                summary.reduce((s, p) => s + parseFloat(p.completionRate), 0) / summary.length
-              )
-            : 0;
-
-        setStats({
-          totalTrainings: trainings.length,
-          totalAssignments: assignments.length,
-          completedAssignments: completed,
-          inProgressAssignments: inProg,
-          pendingAssignments: pending,
-          totalEmployees,
-          avgCompletionRate: avgRate,
-        });
-
-        setRecentTrainings(trainings.slice(0, 5));
-        setRecentAssignments(assignments.slice(0, 5));
-        // Map summary to EmployeeProgress shape
-        setTopEmployees(
-          summary
-            .map((s) => ({
-              employeeId: s.employee.email,
-              employeeName: s.employee.name,
-              employeeEmail: s.employee.email,
-              total: s.total,
-              completed: s.completed,
-              completionRate: Math.round(parseFloat(s.completionRate)),
-            }))
-            .sort((a, b) => b.completionRate - a.completionRate)
-            .slice(0, 5)
-        );
+        const [db, an] = await Promise.all([fetchAdminDashboard(), fetchAnalytics()]);
+        setDashboard(db);
+        setAnalytics(an);
       } catch {
-        // silently handle - stats stay null
+        setError(true);
       } finally {
         setLoading(false);
       }
     };
-    fetchAll();
+    load();
   }, []);
 
   if (loading) {
@@ -141,6 +134,25 @@ const AdminDashboardPage = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="adm-loading">
+        <AlertCircle size={40} style={{ color: COLOR.red, marginBottom: '0.75rem' }} />
+        <p className="loading-text" style={{ color: COLOR.red }}>
+          Failed to load dashboard. Please refresh.
+        </p>
+      </div>
+    );
+  }
+
+  // Normalise pie data — ensure all 3 slices exist even if count is 0
+  const pieData = (['completed', 'in_progress', 'pending'] as const).map((s) => ({
+    status: s,
+    count: analytics?.statusBreakdown.find((x) => x.status === s)?.count ?? 0,
+  }));
+
+  const hasAnalytics = analytics !== null;
+
   return (
     <div className="adm-page">
       {/* ── Header ── */}
@@ -148,7 +160,7 @@ const AdminDashboardPage = () => {
         <div>
           <h1 className="adm-title">Admin Dashboard</h1>
           <p className="adm-subtitle">
-            Welcome back, <strong>{user?.name}</strong> — here's what's happening today.
+            Welcome back, <strong>{user?.name}</strong> — here's an overview of all training activity.
           </p>
         </div>
         <div className="adm-header-badge">
@@ -159,151 +171,145 @@ const AdminDashboardPage = () => {
 
       {/* ── Stats Grid ── */}
       <div className="adm-stats-grid">
-        <StatCard
-          label="Total Trainings"
-          value={stats?.totalTrainings ?? 0}
-          icon={BookOpen}
-          color="#4f46e5"
-          sub="All training programs"
-        />
-        <StatCard
-          label="Total Assignments"
-          value={stats?.totalAssignments ?? 0}
-          icon={ClipboardList}
-          color="#0ea5e9"
-          sub="Across all employees"
-        />
-        <StatCard
-          label="Completed"
-          value={stats?.completedAssignments ?? 0}
-          icon={CheckCircle2}
-          color="#22c55e"
-          sub={`${stats?.avgCompletionRate ?? 0}% avg completion`}
-        />
-        <StatCard
-          label="In Progress"
-          value={stats?.inProgressAssignments ?? 0}
-          icon={TrendingUp}
-          color="#f59e0b"
-          sub="Currently active"
-        />
-        <StatCard
-          label="Pending"
-          value={stats?.pendingAssignments ?? 0}
-          icon={AlertCircle}
-          color="#ef4444"
-          sub="Not yet started"
-        />
-        <StatCard
-          label="Active Employees"
-          value={stats?.totalEmployees ?? 0}
-          icon={Users}
-          color="#8b5cf6"
-          sub="With assignments"
-        />
+        <StatCard label="Total Trainings"   value={dashboard?.totalTrainings ?? 0}       icon={BookOpen}      color={COLOR.indigo} sub="All programs" />
+        <StatCard label="Total Assignments" value={dashboard?.totalAssignments ?? 0}      icon={ClipboardList} color={COLOR.sky}    sub="Across all employees" />
+        <StatCard label="Completed"         value={dashboard?.completedAssignments ?? 0}  icon={CheckCircle2}  color={COLOR.green}  sub={`${dashboard?.avgCompletionRate ?? 0}% avg rate`} />
+        <StatCard label="In Progress"       value={dashboard?.inProgressAssignments ?? 0} icon={TrendingUp}    color={COLOR.amber}  sub="Currently active" />
+        <StatCard label="Pending"           value={dashboard?.pendingAssignments ?? 0}    icon={AlertCircle}   color={COLOR.red}    sub="Not yet started" />
+        <StatCard label="Total Employees"   value={dashboard?.totalEmployees ?? 0}        icon={Users}         color={COLOR.violet} sub={`${dashboard?.activeEmployees ?? 0} with assignments`} />
       </div>
 
-      {/* ── Two-column row ── */}
+      {/* ── Row 1: Status Pie + Monthly Trend ── */}
       <div className="adm-grid-2">
-        {/* Recent Trainings */}
-        <div className="adm-card">
-          <div className="adm-card-header">
-            <BookOpen size={18} className="adm-card-icon" />
-            <h2 className="adm-card-title">Recent Trainings</h2>
-          </div>
-          {recentTrainings.length === 0 ? (
-            <p className="adm-empty">No trainings found. Create your first training.</p>
-          ) : (
-            <div className="adm-list">
-              {recentTrainings.map((t) => (
-                <div key={t._id} className="adm-list-item">
-                  <div className="adm-list-dot" style={{ background: '#4f46e5' }} />
-                  <div className="adm-list-body">
-                    <p className="adm-list-title">{t.title}</p>
-                    <p className="adm-list-sub">
-                      <span className="adm-chip">{t.category}</span>
-                      <Clock size={11} />
-                      {t.durationHours}h
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
 
-        {/* Recent Assignments */}
-        <div className="adm-card">
-          <div className="adm-card-header">
-            <ClipboardList size={18} className="adm-card-icon" />
-            <h2 className="adm-card-title">Recent Assignments</h2>
-          </div>
-          {recentAssignments.length === 0 ? (
-            <p className="adm-empty">No assignments yet.</p>
+        {/* Status Donut */}
+        <ChartCard icon={BarChart3} title="Assignment Status Breakdown">
+          {hasAnalytics ? (
+            <div className="adm-chart-donut-wrap">
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    dataKey="count"
+                    nameKey="status"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={85}
+                    paddingAngle={3}
+                    strokeWidth={0}
+                  >
+                    {pieData.map((d) => (
+                      <Cell key={d.status} fill={STATUS_COLORS[d.status]} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<PieTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+              <PieLegend data={pieData} />
+            </div>
           ) : (
-            <div className="adm-list">
-              {recentAssignments.map((a) => (
-                <div key={a._id} className="adm-list-item">
-                  <div
-                    className="adm-list-dot"
-                    style={{
-                      background:
-                        a.status === 'completed'
-                          ? '#22c55e'
-                          : a.status === 'in_progress'
-                          ? '#f59e0b'
-                          : '#94a3b8',
-                    }}
-                  />
-                  <div className="adm-list-body">
-                    <p className="adm-list-title">{a.training?.title ?? '—'}</p>
-                    <p className="adm-list-sub">
-                      <span>{a.employee?.name ?? '—'}</span>
-                      <StatusBadge status={a.status} />
-                    </p>
-                  </div>
-                </div>
-              ))}
+            <p className="adm-empty">No data available</p>
+          )}
+        </ChartCard>
+
+        {/* Monthly Trend Area Chart */}
+        <ChartCard icon={TrendingUp} title="Monthly Completions (Last 6 Months)">
+          {hasAnalytics && analytics.monthlyTrends.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={analytics.monthlyTrends} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor={COLOR.indigo} stopOpacity={0.25} />
+                    <stop offset="95%" stopColor={COLOR.indigo} stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 10, border: '1px solid #e5e7eb', fontSize: 12 }}
+                  formatter={(v: number) => [v, 'Completed']}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="completed"
+                  stroke={COLOR.indigo}
+                  strokeWidth={2.5}
+                  fill="url(#areaGrad)"
+                  dot={{ r: 4, fill: COLOR.indigo, strokeWidth: 0 }}
+                  activeDot={{ r: 6 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="adm-empty-chart">
+              <p>No completion data yet for the last 6 months.</p>
             </div>
           )}
-        </div>
+        </ChartCard>
       </div>
 
-      {/* ── Employee Progress ── */}
-      <div className="adm-card">
-        <div className="adm-card-header">
-          <BarChart3 size={18} className="adm-card-icon" />
-          <h2 className="adm-card-title">Top Employee Progress</h2>
-        </div>
-        {topEmployees.length === 0 ? (
-          <p className="adm-empty">No progress data available yet.</p>
-        ) : (
-          <div className="adm-progress-table">
-            {topEmployees.map((emp) => (
-              <div key={emp.employeeId} className="adm-progress-row">
-                <div className="adm-progress-avatar">
-                  {emp.employeeName.charAt(0).toUpperCase()}
-                </div>
-                <div className="adm-progress-info">
-                  <p className="adm-progress-name">{emp.employeeName}</p>
-                  <p className="adm-progress-email">{emp.employeeEmail}</p>
-                </div>
-                <div className="adm-progress-bar-wrap">
-                  <div className="adm-progress-bar-bg">
-                    <div
-                      className="adm-progress-bar-fill"
-                      style={{ width: `${emp.completionRate}%` }}
-                    />
+      {/* ── Row 2: Category Bar + Top Employees ── */}
+      <div className="adm-grid-2">
+
+        {/* Category Breakdown Bar Chart */}
+        <ChartCard icon={BookOpen} title="Assignments by Training Category">
+          {hasAnalytics && analytics.categoryBreakdown.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={analytics.categoryBreakdown} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+                <XAxis dataKey="category" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 10, border: '1px solid #e5e7eb', fontSize: 12 }}
+                />
+                <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+                <Bar dataKey="completed"   name="Completed"    fill={COLOR.green}  radius={[4,4,0,0]} stackId="a" />
+                <Bar dataKey="inProgress"  name="In Progress"  fill={COLOR.amber}  radius={[0,0,0,0]} stackId="a" />
+                <Bar dataKey="pending"     name="Pending"      fill={COLOR.red}    radius={[4,4,0,0]} stackId="a" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="adm-empty-chart">
+              <p>No category data available yet.</p>
+            </div>
+          )}
+        </ChartCard>
+
+        {/* Top Employees Horizontal Bar */}
+        <ChartCard icon={Users} title="Top 5 Employees by Completion Rate">
+          {hasAnalytics && analytics.topEmployees.length > 0 ? (
+            <div className="adm-top-employees">
+              {analytics.topEmployees.map((emp, i) => (
+                <div key={emp.name} className="adm-top-emp-row">
+                  <div className="adm-top-emp-rank" style={{ background: BAR_COLORS[i] + '18', color: BAR_COLORS[i] }}>
+                    {i + 1}
                   </div>
-                  <span className="adm-progress-pct">{emp.completionRate}%</span>
+                  <div className="adm-top-emp-info">
+                    <p className="adm-top-emp-name">{emp.name}</p>
+                    <div className="adm-top-emp-bar-bg">
+                      <div
+                        className="adm-top-emp-bar-fill"
+                        style={{ width: `${emp.completionRate}%`, background: BAR_COLORS[i] }}
+                      />
+                    </div>
+                  </div>
+                  <div className="adm-top-emp-meta">
+                    <span className="adm-top-emp-pct" style={{ color: BAR_COLORS[i] }}>
+                      {emp.completionRate}%
+                    </span>
+                    <span className="adm-top-emp-count">{emp.completed}/{emp.total}</span>
+                  </div>
                 </div>
-                <div className="adm-progress-count">
-                  {emp.completed}/{emp.total}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          ) : (
+            <div className="adm-empty-chart">
+              <p>No employee data available yet.</p>
+            </div>
+          )}
+        </ChartCard>
       </div>
     </div>
   );

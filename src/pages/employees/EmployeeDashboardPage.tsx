@@ -1,42 +1,26 @@
 import { useEffect, useState } from 'react';
 import {
-  BookOpen,
-  CheckCircle2,
-  Clock,
-  TrendingUp,
-  PlayCircle,
-  AlertCircle,
-  GraduationCap,
-  Calendar,
-  ClipboardList,
+  BookOpen, CheckCircle2, Clock, TrendingUp,
+  PlayCircle, AlertCircle, GraduationCap, Calendar,
+  ClipboardList, Tag,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import api from '@/lib/axios';
-import type { Assignment } from '@/types';
+import { fetchMyStats } from '@/services/assignment.api';
+import type { MyStats, AssignmentStatus } from '@/types';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface MyStats {
-  total: number;
-  completed: number;
-  inProgress: number;
-  pending: number;
-  completionRate: number;
-  totalHours: number;
-}
+// ─── Palette ──────────────────────────────────────────────────────────────────
+const COLOR = {
+  indigo: '#4f46e5',
+  green:  '#22c55e',
+  amber:  '#f59e0b',
+  sky:    '#0ea5e9',
+};
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 const EmpStatCard = ({
-  label,
-  value,
-  icon: Icon,
-  color,
-  sub,
+  label, value, icon: Icon, color, sub,
 }: {
-  label: string;
-  value: string | number;
-  icon: React.ElementType;
-  color: string;
-  sub?: string;
+  label: string; value: string | number; icon: React.ElementType; color: string; sub?: string;
 }) => (
   <div className="emp-stat-card">
     <div className="emp-stat-icon" style={{ background: color + '1a', color }}>
@@ -51,18 +35,17 @@ const EmpStatCard = ({
 );
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
-const StatusBadge = ({ status }: { status: string }) => {
-  const map: Record<string, { label: string; cls: string; icon: React.ElementType }> = {
-    completed: { label: 'Completed', cls: 'badge-success', icon: CheckCircle2 },
-    in_progress: { label: 'In Progress', cls: 'badge-warning', icon: PlayCircle },
-    pending: { label: 'Pending', cls: 'badge-muted', icon: AlertCircle },
+const StatusBadge = ({ status }: { status: AssignmentStatus }) => {
+  const map: Record<AssignmentStatus, { label: string; cls: string; icon: React.ElementType }> = {
+    completed:   { label: 'Completed',   cls: 'badge-success', icon: CheckCircle2 },
+    in_progress: { label: 'In Progress', cls: 'badge-warning', icon: PlayCircle   },
+    pending:     { label: 'Pending',     cls: 'badge-muted',   icon: AlertCircle  },
   };
-  const s = map[status] ?? { label: status, cls: 'badge-muted', icon: AlertCircle };
+  const s = map[status] ?? map.pending;
   const Icon = s.icon;
   return (
     <span className={`emp-badge ${s.cls}`}>
-      <Icon size={11} />
-      {s.label}
+      <Icon size={11} /> {s.label}
     </span>
   );
 };
@@ -70,33 +53,14 @@ const StatusBadge = ({ status }: { status: string }) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 const EmployeeDashboardPage = () => {
   const { user } = useAuth();
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [stats, setStats] = useState<MyStats | null>(null);
+  const [stats, setStats]   = useState<MyStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // GET /assignments returns only the current user's assignments when role=employee
-        const { data } = await api.get<{ count: number; assignments: Assignment[] }>('/assignments');
-        const myAssignments = data.assignments;
-        setAssignments(myAssignments);
-
-        const total = myAssignments.length;
-        const completed = myAssignments.filter((a) => a.status === 'completed').length;
-        const inProgress = myAssignments.filter((a) => a.status === 'in_progress').length;
-        const pending = myAssignments.filter((a) => a.status === 'pending').length;
-        const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
-        const totalHours = myAssignments.reduce((s, a) => s + (a.training?.durationHours ?? 0), 0);
-
-        setStats({ total, completed, inProgress, pending, completionRate, totalHours });
-      } catch {
-        // silently handle
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+    fetchMyStats()
+      .then(setStats)
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) {
@@ -108,8 +72,9 @@ const EmployeeDashboardPage = () => {
     );
   }
 
-  const completionRate = stats?.completionRate ?? 0;
+  const rate        = stats?.completionRate ?? 0;
   const circumference = 2 * Math.PI * 50;
+  const ringColor   = rate >= 80 ? COLOR.green : rate >= 50 ? COLOR.amber : COLOR.indigo;
 
   return (
     <div className="emp-page">
@@ -135,21 +100,19 @@ const EmployeeDashboardPage = () => {
             <svg viewBox="0 0 120 120" className="emp-ring-svg">
               <circle cx="60" cy="60" r="50" fill="none" stroke="#e2e8f0" strokeWidth="10" />
               <circle
-                cx="60"
-                cy="60"
-                r="50"
+                cx="60" cy="60" r="50"
                 fill="none"
-                stroke="#4f46e5"
+                stroke={ringColor}
                 strokeWidth="10"
                 strokeLinecap="round"
-                strokeDasharray={`${circumference}`}
-                strokeDashoffset={`${circumference * (1 - completionRate / 100)}`}
+                strokeDasharray={circumference}
+                strokeDashoffset={circumference * (1 - rate / 100)}
                 transform="rotate(-90 60 60)"
                 style={{ transition: 'stroke-dashoffset 1s ease' }}
               />
             </svg>
             <div className="emp-ring-center">
-              <span className="emp-ring-pct">{completionRate}%</span>
+              <span className="emp-ring-pct" style={{ color: ringColor }}>{rate}%</span>
               <span className="emp-ring-sub">Complete</span>
             </div>
           </div>
@@ -161,45 +124,41 @@ const EmployeeDashboardPage = () => {
 
         {/* Stats */}
         <div className="emp-stats-grid">
-          <EmpStatCard
-            label="Total Assigned"
-            value={stats?.total ?? 0}
-            icon={ClipboardList}
-            color="#4f46e5"
-            sub="Training programs"
-          />
-          <EmpStatCard
-            label="Completed"
-            value={stats?.completed ?? 0}
-            icon={CheckCircle2}
-            color="#22c55e"
-            sub="Successfully finished"
-          />
-          <EmpStatCard
-            label="In Progress"
-            value={stats?.inProgress ?? 0}
-            icon={TrendingUp}
-            color="#f59e0b"
-            sub="Currently active"
-          />
-          <EmpStatCard
-            label="Total Hours"
-            value={`${stats?.totalHours ?? 0}h`}
-            icon={Clock}
-            color="#0ea5e9"
-            sub="Total training time"
-          />
+          <EmpStatCard label="Total Assigned" value={stats?.total ?? 0}      icon={ClipboardList} color={COLOR.indigo} sub="Training programs" />
+          <EmpStatCard label="Completed"      value={stats?.completed ?? 0}  icon={CheckCircle2}  color={COLOR.green}  sub="Successfully finished" />
+          <EmpStatCard label="In Progress"    value={stats?.inProgress ?? 0} icon={TrendingUp}    color={COLOR.amber}  sub="Currently active" />
+          <EmpStatCard label="Pending"        value={stats?.pending ?? 0}    icon={Clock}         color={COLOR.sky}    sub="Not yet started" />
         </div>
       </div>
 
-      {/* ── My Trainings List ── */}
+      {/* ── Quick Actions ── */}
+      {(stats?.total ?? 0) > 0 && (
+        <div className="emp-quick-actions">
+          <a href="/employee/my-trainings" className="emp-action-card emp-action-primary">
+            <BookOpen size={20} />
+            <div>
+              <p className="emp-action-title">Open Kanban Board</p>
+              <p className="emp-action-sub">Manage your training workflow</p>
+            </div>
+          </a>
+          <a href="/employee/my-progress" className="emp-action-card emp-action-secondary">
+            <TrendingUp size={20} />
+            <div>
+              <p className="emp-action-title">View Full Progress</p>
+              <p className="emp-action-sub">Charts, categories & history</p>
+            </div>
+          </a>
+        </div>
+      )}
+
+      {/* ── Recent Assignments ── */}
       <div className="emp-card">
         <div className="emp-card-header">
           <BookOpen size={18} className="emp-card-icon" />
-          <h2 className="emp-card-title">My Training Assignments</h2>
+          <h2 className="emp-card-title">Recent Training Activity</h2>
         </div>
 
-        {assignments.length === 0 ? (
+        {(stats?.recentAssignments ?? []).length === 0 ? (
           <div className="emp-empty">
             <GraduationCap size={48} className="emp-empty-icon" />
             <p className="emp-empty-title">No assignments yet</p>
@@ -207,17 +166,15 @@ const EmployeeDashboardPage = () => {
           </div>
         ) : (
           <div className="emp-training-list">
-            {assignments.map((a) => (
+            {stats!.recentAssignments.map((a) => (
               <div key={a._id} className="emp-training-item">
                 <div
                   className="emp-training-color-bar"
                   style={{
                     background:
-                      a.status === 'completed'
-                        ? '#22c55e'
-                        : a.status === 'in_progress'
-                        ? '#f59e0b'
-                        : '#cbd5e1',
+                      a.status === 'completed'   ? COLOR.green
+                      : a.status === 'in_progress' ? COLOR.amber
+                      : '#cbd5e1',
                   }}
                 />
                 <div className="emp-training-body">
@@ -230,18 +187,15 @@ const EmployeeDashboardPage = () => {
                   )}
                   <div className="emp-training-meta">
                     {a.training?.category && (
-                      <span className="emp-chip">{a.training.category}</span>
+                      <span className="emp-chip"><Tag size={10} /> {a.training.category}</span>
                     )}
                     {a.training?.durationHours && (
-                      <span className="emp-meta-item">
-                        <Clock size={12} />
-                        {a.training.durationHours}h
-                      </span>
+                      <span className="emp-meta-item"><Clock size={12} /> {a.training.durationHours}h</span>
                     )}
                     {a.completedAt && (
                       <span className="emp-meta-item">
                         <Calendar size={12} />
-                        Completed {new Date(a.completedAt).toLocaleDateString()}
+                        Completed {new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </span>
                     )}
                   </div>

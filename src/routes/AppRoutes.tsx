@@ -4,6 +4,8 @@ import { TrainingsPage } from '../pages/admin/TrainingsPage';
 import { AssignmentsPage } from '../pages/admin/AssignmentsPage';
 import { ProgressPage } from '../pages/admin/ProgressPage';
 import EmployeeDashboardPage from '../pages/employees/EmployeeDashboardPage';
+import MyTrainingsPage from '../pages/employees/MyTrainingsPage';
+import MyProgressPage from '../pages/employees/MyProgressPage';
 import LoginPage from '../pages/auth/LoginPage';
 import RegisterPage from '../pages/auth/RegisterPage';
 import { AppLayout } from '../components/layout/AppLayout';
@@ -53,6 +55,8 @@ const AppRoutes = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/employee/dashboard" replace /> },
       { path: '/employee/dashboard', element: <EmployeeDashboardPage /> },
+      { path: '/employee/my-trainings', element: <MyTrainingsPage /> },
+      { path: '/employee/my-progress', element: <MyProgressPage /> },
     ],
   },
 

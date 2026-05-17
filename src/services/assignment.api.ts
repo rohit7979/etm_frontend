@@ -1,5 +1,5 @@
 import api from '../lib/axios';
-import type { Assignment, AssignmentStatus, EmployeeProgress } from '../types';
+import type { Assignment, AssignmentStatus, EmployeeProgress, MyStats } from '../types';
 
 export interface AssignPayload {
   employeeId: string;
@@ -7,33 +7,38 @@ export interface AssignPayload {
 }
 
 export const fetchAssignments = async (): Promise<Assignment[]> => {
-  const { data } = await api.get<Assignment[]>('/assignments');
-  return data;
+  const { data } = await api.get<{ count: number; assignments: Assignment[] }>('/assignments');
+  return data.assignments;
 };
 
 export const fetchAssignment = async (id: string): Promise<Assignment> => {
-  const { data } = await api.get<Assignment>(`/assignments/${id}`);
-  return data;
+  const { data } = await api.get<{ assignment: Assignment }>(`/assignments/${id}`);
+  return data.assignment;
 };
 
 export const createAssignment = async (payload: AssignPayload): Promise<Assignment> => {
-  const { data } = await api.post<Assignment>('/assignments', payload);
-  return data;
+  const { data } = await api.post<{ assignment: Assignment }>('/assignments', payload);
+  return data.assignment;
 };
 
 export const updateAssignmentStatus = async (
   id: string,
   status: AssignmentStatus
 ): Promise<Assignment> => {
-  const { data } = await api.patch<Assignment>(`/assignments/${id}/status`, { status });
-  return data;
+  const { data } = await api.patch<{ assignment: Assignment }>(`/assignments/${id}/status`, { status });
+  return data.assignment;
 };
 
 export const deleteAssignment = async (id: string): Promise<void> => {
   await api.delete(`/assignments/${id}`);
 };
 
-export const fetchEmployeeProgress = async (): Promise<EmployeeProgress[]> => {
-  const { data } = await api.get<EmployeeProgress[]>('/assignments/progress');
+export const fetchProgressSummary = async (): Promise<EmployeeProgress[]> => {
+  const { data } = await api.get<{ summary: EmployeeProgress[] }>('/assignments/progress');
+  return data.summary;
+};
+
+export const fetchMyStats = async (): Promise<MyStats> => {
+  const { data } = await api.get<MyStats>('/assignments/my-stats');
   return data;
 };

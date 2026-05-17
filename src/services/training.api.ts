@@ -9,23 +9,26 @@ export interface TrainingPayload {
 }
 
 export const fetchTrainings = async (): Promise<Training[]> => {
-  const { data } = await api.get<Training[]>('/trainings');
-  return data;
+  const { data } = await api.get<{ count: number; trainings: Training[] }>('/trainings');
+  return data.trainings;
 };
 
 export const fetchTraining = async (id: string): Promise<Training> => {
-  const { data } = await api.get<Training>(`/trainings/${id}`);
-  return data;
+  const { data } = await api.get<{ training: Training }>(`/trainings/${id}`);
+  return data.training;
 };
 
 export const createTraining = async (payload: TrainingPayload): Promise<Training> => {
-  const { data } = await api.post<Training>('/trainings', payload);
-  return data;
+  const { data } = await api.post<{ training: Training }>('/trainings', payload);
+  return data.training;
 };
 
-export const updateTraining = async (id: string, payload: Partial<TrainingPayload>): Promise<Training> => {
-  const { data } = await api.put<Training>(`/trainings/${id}`, payload);
-  return data;
+export const updateTraining = async (
+  id: string,
+  payload: Partial<TrainingPayload>
+): Promise<Training> => {
+  const { data } = await api.put<{ training: Training }>(`/trainings/${id}`, payload);
+  return data.training;
 };
 
 export const deleteTraining = async (id: string): Promise<void> => {
