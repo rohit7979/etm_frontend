@@ -6,8 +6,9 @@ import toast from 'react-hot-toast';
 import {
   ClipboardList, Plus, Trash2, X, Loader2,
   AlertCircle, CheckCircle2, PlayCircle, Clock,
-  User, BookOpen, Search, Filter,
+  User, BookOpen, Search, Filter, MessageSquare, Tag,
 } from 'lucide-react';
+import CommentSection from '@/components/shared/CommentSection';
 import {
   fetchAssignments,
   createAssignment,
@@ -173,6 +174,46 @@ const DeleteConfirm = ({ assignment, onCancel, onConfirmed }: DeleteConfirmProps
   );
 };
 
+// ─── Assignment Comment Modal ─────────────────────────────────────────────────
+const AssignmentCommentModal = ({
+  assignment,
+  onClose,
+}: {
+  assignment: Assignment;
+  onClose: () => void;
+}) => (
+  <div className="trn-overlay" onClick={onClose}>
+    <div className="kb-modal" onClick={(e) => e.stopPropagation()}>
+      {/* Header */}
+      <div className="kb-modal-header" style={{ borderLeftColor: '#c52031' }}>
+        <div className="kb-modal-header-top">
+          <StatusBadge status={assignment.status} />
+          <button className="trn-modal-close" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+        <h2 className="kb-modal-title">{assignment.training?.title ?? '—'}</h2>
+        <div className="kb-modal-meta">
+          <span className="kb-meta-chip">
+            <User size={11} /> {assignment.employee?.name ?? '—'}
+          </span>
+          <span className="kb-meta-chip">
+            <Tag size={11} /> {assignment.training?.category ?? '—'}
+          </span>
+          <span className="kb-meta-chip">
+            <Clock size={11} /> {assignment.training?.durationHours ?? '—'}h
+          </span>
+        </div>
+      </div>
+
+      {/* Comment section */}
+      <div className="kb-modal-body">
+        <CommentSection assignmentId={assignment._id} />
+      </div>
+    </div>
+  </div>
+);
+
 // ─── Status Dropdown (inline update) ─────────────────────────────────────────
 const StatusSelect = ({
   assignment,
@@ -219,8 +260,9 @@ export const AssignmentsPage = () => {
   const [employees, setEmployees]     = useState<Employee[]>([]);
   const [trainings, setTrainings]     = useState<Training[]>([]);
   const [loading, setLoading]         = useState(true);
-  const [showModal, setShowModal]     = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<Assignment | null>(null);
+  const [showModal, setShowModal]         = useState(false);
+  const [deleteTarget, setDeleteTarget]   = useState<Assignment | null>(null);
+  const [commentTarget, setCommentTarget] = useState<Assignment | null>(null);
   const [search, setSearch]           = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
@@ -406,13 +448,22 @@ export const AssignmentsPage = () => {
 
                   {/* Actions */}
                   <td>
-                    <button
-                      className="trn-icon-btn trn-icon-btn-delete"
-                      onClick={() => setDeleteTarget(a)}
-                      title="Remove assignment"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="asgn-actions">
+                      <button
+                        className="trn-icon-btn"
+                        onClick={() => setCommentTarget(a)}
+                        title="View / add comments"
+                      >
+                        <MessageSquare size={14} />
+                      </button>
+                      <button
+                        className="trn-icon-btn trn-icon-btn-delete"
+                        onClick={() => setDeleteTarget(a)}
+                        title="Remove assignment"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -435,6 +486,12 @@ export const AssignmentsPage = () => {
           assignment={deleteTarget}
           onCancel={() => setDeleteTarget(null)}
           onConfirmed={handleDeleted}
+        />
+      )}
+      {commentTarget && (
+        <AssignmentCommentModal
+          assignment={commentTarget}
+          onClose={() => setCommentTarget(null)}
         />
       )}
     </div>

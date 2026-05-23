@@ -203,7 +203,7 @@ const RegisterPage = () => {
                   <input
                     id="reg-password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
+                    placeholder="Password"
                     className={`auth-input auth-input-with-icon ${errors.password ? 'auth-input-error' : ''}`}
                     autoComplete="new-password"
                     {...register('password')}
@@ -248,7 +248,7 @@ const RegisterPage = () => {
                   <input
                     id="reg-confirm-password"
                     type={showConfirm ? 'text' : 'password'}
-                    placeholder="••••••••"
+                    placeholder="Confirm password"
                     className={`auth-input auth-input-with-icon ${errors.confirmPassword ? 'auth-input-error' : ''}`}
                     autoComplete="new-password"
                     {...register('confirmPassword')}

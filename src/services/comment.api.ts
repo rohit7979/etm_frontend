@@ -8,10 +8,14 @@ export const fetchComments = async (assignmentId: string): Promise<Comment[]> =>
   return data.comments;
 };
 
-export const addComment = async (assignmentId: string, text: string): Promise<Comment> => {
+export const addComment = async (
+  assignmentId: string,
+  text: string,
+  replyToId?: string
+): Promise<Comment> => {
   const { data } = await api.post<{ comment: Comment }>(
     `/assignments/${assignmentId}/comments`,
-    { text }
+    { text, ...(replyToId ? { replyToId } : {}) }
   );
   return data.comment;
 };

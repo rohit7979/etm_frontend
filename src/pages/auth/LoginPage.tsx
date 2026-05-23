@@ -156,7 +156,7 @@ const LoginPage = () => {
                   <input
                     id="login-password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
+                    placeholder="Password"
                     className={`auth-input auth-input-with-icon ${errors.password ? 'auth-input-error' : ''}`}
                     autoComplete="current-password"
                     {...register('password')}

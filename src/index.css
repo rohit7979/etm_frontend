@@ -2736,12 +2736,18 @@ body{
 }
 
 /* ── Comments ── */
+/* ═══════════════════════════════════════════════════════
+   CHAT COMMENT SYSTEM
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Wrapper ── */
 .kb-comment-section {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.625rem;
 }
 
+/* ── Heading ── */
 .kb-comment-heading {
   display: flex;
   align-items: center;
@@ -2754,120 +2760,282 @@ body{
   border-bottom: 1px solid #f3f4f6;
 }
 
-.kb-comment-thread {
-  display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
-  max-height: 220px;
-  overflow-y: auto;
-  padding-right: 0.25rem;
-}
-
+/* ── Empty state ── */
 .kb-comment-empty {
   font-size: 0.8rem;
   color: #9ca3af;
   text-align: center;
-  padding: 1rem 0;
+  padding: 1.5rem 0;
   margin: 0;
 }
 
-.kb-comment { display: flex; }
-
-.kb-comment-own { justify-content: flex-end; }
-
-.kb-comment-bubble {
-  max-width: 85%;
-  background: #f9fafb;
-  border: 1px solid #f3f4f6;
-  border-radius: 10px;
-  padding: 0.6rem 0.75rem;
-}
-
-.kb-comment-own .kb-comment-bubble {
-  background: #ede9fe;
-  border-color: #ddd6fe;
-}
-
-.kb-comment-meta {
+/* ── Scrollable chat thread ── */
+.kb-chat-thread {
   display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-bottom: 0.25rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 0.25rem 0.25rem 0.25rem 0;
 }
 
-.kb-comment-author {
+/* ═══════════════════
+   CHAT ROW (one message)
+   ═══════════════════ */
+
+/* Default = other person (LEFT) */
+.kb-chat-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+/* Own message (RIGHT) — flip direction */
+.kb-chat-row-own {
+  flex-direction: row-reverse;
+}
+
+/* ── Avatar circle ── */
+.kb-chat-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #374151;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  align-self: flex-end;
+  margin-bottom: 1.25rem; /* align with bottom of bubble group */
 }
 
-.kb-comment-role {
-  font-size: 0.68rem;
-  color: #9ca3af;
-  background: #f3f4f6;
-  padding: 0.05rem 0.35rem;
+/* ── Bubble group: name label + box + footer ── */
+.kb-chat-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  max-width: 72%;
+}
+
+/* ── Sender label (above bubble) ── */
+.kb-chat-sender {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding-left: 0.35rem;
+}
+.kb-chat-sender-own {
+  flex-direction: row-reverse;
+  padding-left: 0;
+  padding-right: 0.35rem;
+}
+
+.kb-chat-sender-name {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.kb-chat-admin-tag {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #c52031;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
   border-radius: 999px;
+  padding: 0.05rem 0.35rem;
 }
 
-.kb-comment-time {
+/* ═══════════════════
+   CHAT BUBBLE BOX
+   ═══════════════════ */
+
+/* Other person — LEFT bubble */
+.kb-chat-box {
+  background: #f3f4f6;
+  color: #111827;
+  border-radius: 0px 16px 16px 16px; /* flat top-left = tail side */
+  padding: 0.6rem 0.875rem;
+  position: relative;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+/* Own message — RIGHT bubble */
+.kb-chat-box-own {
+  background: #4f46e5;
+  color: #fff;
+  border-radius: 16px 0px 16px 16px; /* flat top-right = tail side */
+}
+
+/* ── Reply quote inside bubble ── */
+.kb-chat-quote {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  background: rgba(0,0,0,0.07);
+  border-left: 3px solid #6366f1;
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+  margin-bottom: 0.45rem;
+}
+.kb-chat-quote-own {
+  background: rgba(255,255,255,0.15);
+  border-left-color: rgba(255,255,255,0.7);
+}
+
+.kb-chat-quote-author {
   font-size: 0.68rem;
-  color: #9ca3af;
-  margin-left: auto;
+  font-weight: 700;
+  color: #4f46e5;
+  display: block;
+}
+.kb-chat-quote-own .kb-chat-quote-author { color: rgba(255,255,255,0.9); }
+
+.kb-chat-quote-text {
+  font-size: 0.68rem;
+  color: #6b7280;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kb-chat-quote-own .kb-chat-quote-text { color: rgba(255,255,255,0.7); }
+
+/* ── Message text ── */
+.kb-chat-text {
+  font-size: 0.84rem;
+  line-height: 1.45;
+  margin: 0;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
-.kb-comment-del {
+/* ═══════════════════
+   CHAT FOOTER (time + actions)
+   ═══════════════════ */
+
+.kb-chat-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding-left: 0.35rem;
+}
+.kb-chat-footer-own {
+  flex-direction: row-reverse;
+  padding-left: 0;
+  padding-right: 0.35rem;
+}
+
+.kb-chat-time {
+  font-size: 0.65rem;
+  color: #9ca3af;
+}
+
+.kb-chat-reply-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.18rem;
   background: none;
   border: none;
   cursor: pointer;
-  color: #9ca3af;
-  padding: 0;
+  font-size: 0.67rem;
+  font-weight: 600;
+  color: #6366f1;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  transition: background 0.15s, color 0.15s;
+}
+.kb-chat-reply-btn:hover {
+  background: #ede9fe;
+  color: #4338ca;
+}
+
+.kb-chat-del-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #d1d5db;
   display: flex;
   align-items: center;
-  transition: color 0.15s;
-  margin-left: 0.25rem;
+  padding: 0.1rem 0.25rem;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+.kb-chat-del-btn:hover {
+  color: #ef4444;
+  background: #fef2f2;
 }
 
-.kb-comment-del:hover { color: #ef4444; }
+/* ═══════════════════
+   REPLY CONTEXT CHIP
+   ═══════════════════ */
 
-.kb-comment-text {
-  font-size: 0.82rem;
-  color: #374151;
-  margin: 0;
-  line-height: 1.45;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-/* Comment input */
-.kb-comment-input-wrap {
+.kb-reply-context {
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.35rem;
+  background: #ede9fe;
+  border: 1px solid #ddd6fe;
+  border-radius: 8px;
+  padding: 0.35rem 0.625rem;
+  font-size: 0.75rem;
+  color: #5b21b6;
+}
+.kb-reply-context strong { font-weight: 700; }
+
+.kb-reply-context-clear {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #7c3aed;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  margin-left: auto;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.kb-reply-context-clear:hover { color: #5b21b6; }
+
+/* ═══════════════════
+   CHAT INPUT BAR
+   ═══════════════════ */
+
+.kb-chat-input-bar {
+  display: flex;
   align-items: flex-end;
+  gap: 0.5rem;
+  background: #f9fafb;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 0.4rem 0.5rem 0.4rem 0.875rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.kb-chat-input-bar:focus-within {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+  background: #fff;
 }
 
-.kb-comment-input {
+.kb-chat-input {
   flex: 1;
-  padding: 0.6rem 0.875rem;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 10px;
+  border: none;
+  background: transparent;
   font-size: 0.85rem;
   font-family: inherit;
   resize: none;
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
   color: #111827;
-  line-height: 1.4;
+  line-height: 1.45;
+  max-height: 96px;
+  overflow-y: auto;
 }
+.kb-chat-input::placeholder { color: #9ca3af; }
 
-.kb-comment-input:focus {
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
-}
-
-.kb-comment-send {
-  width: 36px;
-  height: 36px;
+.kb-chat-send-btn {
+  width: 34px;
+  height: 34px;
   border-radius: 10px;
   border: none;
   background: #4f46e5;
@@ -2877,13 +3045,15 @@ body{
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.2s;
+  transition: background 0.2s, transform 0.1s;
 }
+.kb-chat-send-btn:hover:not(:disabled) {
+  background: #4338ca;
+  transform: scale(1.05);
+}
+.kb-chat-send-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-.kb-comment-send:hover:not(:disabled) { background: #4338ca; }
-.kb-comment-send:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* Loading state */
+/* ── Loading spinner ── */
 .kb-comments-loading {
   display: flex;
   align-items: center;
@@ -2893,6 +3063,13 @@ body{
 }
 
 .kb-spin { animation: spin 0.7s linear infinite; }
+
+/* ── Actions cell (comments + delete) in assignments table ── */
+.asgn-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
 
 /* ═══════════════════════════════════════════════════════
    EMPLOYEE DASHBOARD — QUICK ACTIONS

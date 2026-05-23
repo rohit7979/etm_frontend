@@ -36,6 +36,11 @@ export interface Comment {
   assignment: string;
   author: User;
   text: string;
+  replyTo?: {
+    _id: string;
+    author: { name: string };
+    text: string;
+  } | null;
   createdAt: string;
   updatedAt: string;
 }

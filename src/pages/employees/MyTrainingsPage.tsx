@@ -1,14 +1,13 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
-  BookOpen, Clock, Tag, ChevronRight, ChevronLeft,
-  CheckCircle2, MessageSquare, X, Send, Trash2,
+  Clock, Tag, ChevronRight, ChevronLeft,
+  CheckCircle2, MessageSquare, X,
   Loader2, GraduationCap, AlertCircle,
 } from 'lucide-react';
 import { fetchAssignments, updateAssignmentStatus } from '@/services/assignment.api';
-import { fetchComments, addComment, deleteComment } from '@/services/comment.api';
-import { useAuth } from '@/contexts/AuthContext';
-import type { Assignment, AssignmentStatus, Comment } from '@/types';
+import CommentSection from '@/components/shared/CommentSection';
+import type { Assignment, AssignmentStatus } from '@/types';
 
 // ─── Column config ────────────────────────────────────────────────────────────
 const COLUMNS: { status: AssignmentStatus; label: string; color: string; bg: string }[] = [
@@ -27,131 +26,6 @@ const PREV: Partial<Record<AssignmentStatus, AssignmentStatus>> = {
   completed:   'in_progress',
 };
 
-// ─── Comment Section (inside modal) ──────────────────────────────────────────
-const CommentSection = ({
-  assignmentId,
-  currentUserId,
-}: {
-  assignmentId: string;
-  currentUserId: string;
-}) => {
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [text, setText] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    fetchComments(assignmentId)
-      .then(setComments)
-      .catch(() => toast.error('Could not load comments.'))
-      .finally(() => setLoading(false));
-  }, [assignmentId]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [comments]);
-
-  const handleSend = async () => {
-    if (!text.trim()) return;
-    setSending(true);
-    try {
-      const newComment = await addComment(assignmentId, text.trim());
-      setComments((prev) => [...prev, newComment]);
-      setText('');
-    } catch {
-      toast.error('Failed to post comment.');
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const handleDelete = async (commentId: string) => {
-    try {
-      await deleteComment(assignmentId, commentId);
-      setComments((prev) => prev.filter((c) => c._id !== commentId));
-    } catch {
-      toast.error('Failed to delete comment.');
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="kb-comments-loading">
-        <Loader2 size={18} className="kb-spin" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="kb-comment-section">
-      <h4 className="kb-comment-heading">
-        <MessageSquare size={14} />
-        Comments ({comments.length})
-      </h4>
-
-      {/* Thread */}
-      <div className="kb-comment-thread custom-scrollbar">
-        {comments.length === 0 ? (
-          <p className="kb-comment-empty">No comments yet. Be the first to add one.</p>
-        ) : (
-          comments.map((c) => {
-            const isOwn = c.author?.id === currentUserId;
-            return (
-              <div key={c._id} className={`kb-comment ${isOwn ? 'kb-comment-own' : ''}`}>
-                <div className="kb-comment-bubble">
-                  <div className="kb-comment-meta">
-                    <span className="kb-comment-author">{c.author?.name ?? 'Unknown'}</span>
-                    <span className="kb-comment-role">{c.author?.role}</span>
-                    <span className="kb-comment-time">
-                      {new Date(c.createdAt).toLocaleString('en-US', {
-                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-                      })}
-                    </span>
-                    {isOwn && (
-                      <button
-                        className="kb-comment-del"
-                        onClick={() => handleDelete(c._id)}
-                        title="Delete"
-                      >
-                        <Trash2 size={11} />
-                      </button>
-                    )}
-                  </div>
-                  <p className="kb-comment-text">{c.text}</p>
-                </div>
-              </div>
-            );
-          })
-        )}
-        <div ref={bottomRef} />
-      </div>
-
-      {/* Input */}
-      <div className="kb-comment-input-wrap">
-        <textarea
-          className="kb-comment-input"
-          placeholder="Write a comment…"
-          rows={2}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
-          }}
-        />
-        <button
-          className="kb-comment-send"
-          onClick={handleSend}
-          disabled={sending || !text.trim()}
-          title="Send"
-        >
-          {sending ? <Loader2 size={15} className="kb-spin" /> : <Send size={15} />}
-        </button>
-      </div>
-    </div>
-  );
-};
-
 // ─── Card Detail Modal ────────────────────────────────────────────────────────
 const CardModal = ({
   assignment,
@@ -162,7 +36,6 @@ const CardModal = ({
   onClose: () => void;
   onStatusChange: (id: string, status: AssignmentStatus) => void;
 }) => {
-  const { user } = useAuth();
   const [saving, setSaving] = useState(false);
 
   const moveStatus = async (newStatus: AssignmentStatus) => {
@@ -170,7 +43,13 @@ const CardModal = ({
     try {
       await updateAssignmentStatus(assignment._id, newStatus);
       onStatusChange(assignment._id, newStatus);
-      toast.success(`Moved to ${newStatus === 'in_progress' ? 'In Progress' : newStatus === 'completed' ? 'Completed' : 'To Do'}.`);
+      toast.success(
+        `Moved to ${
+          newStatus === 'in_progress' ? 'In Progress'
+          : newStatus === 'completed'  ? 'Completed'
+          : 'To Do'
+        }.`
+      );
       onClose();
     } catch {
       toast.error('Failed to update status.');
@@ -187,10 +66,15 @@ const CardModal = ({
         {/* Header */}
         <div className="kb-modal-header" style={{ borderLeftColor: col.color }}>
           <div className="kb-modal-header-top">
-            <span className="kb-modal-status-chip" style={{ background: col.color + '18', color: col.color }}>
+            <span
+              className="kb-modal-status-chip"
+              style={{ background: col.color + '18', color: col.color }}
+            >
               {col.label}
             </span>
-            <button className="trn-modal-close" onClick={onClose}><X size={18} /></button>
+            <button className="trn-modal-close" onClick={onClose}>
+              <X size={18} />
+            </button>
           </div>
           <h2 className="kb-modal-title">{assignment.training?.title}</h2>
           <div className="kb-modal-meta">
@@ -222,7 +106,9 @@ const CardModal = ({
                 onClick={() => moveStatus(PREV[assignment.status]!)}
                 disabled={saving}
               >
-                {saving ? <Loader2 size={14} className="kb-spin" /> : <ChevronLeft size={14} />}
+                {saving
+                  ? <Loader2 size={14} className="kb-spin" />
+                  : <ChevronLeft size={14} />}
                 Move Back
               </button>
             )}
@@ -244,11 +130,8 @@ const CardModal = ({
             )}
           </div>
 
-          {/* Comment section */}
-          <CommentSection
-            assignmentId={assignment._id}
-            currentUserId={user?.id ?? ''}
-          />
+          {/* Shared comment section (reply support built-in) */}
+          <CommentSection assignmentId={assignment._id} />
         </div>
       </div>
     </div>
@@ -349,7 +232,10 @@ const KanbanColumn = ({
     <div className="kb-col-header" style={{ borderTopColor: col.color }}>
       <div className="kb-col-title-row">
         <span className="kb-col-title">{col.label}</span>
-        <span className="kb-col-count" style={{ background: col.color + '20', color: col.color }}>
+        <span
+          className="kb-col-count"
+          style={{ background: col.color + '20', color: col.color }}
+        >
           {cards.length}
         </span>
       </div>
@@ -438,7 +324,11 @@ const MyTrainingsPage = () => {
         </div>
         <div className="kb-summary-chips">
           {COLUMNS.map((col) => (
-            <span key={col.status} className="kb-summary-chip" style={{ background: col.color + '15', color: col.color }}>
+            <span
+              key={col.status}
+              className="kb-summary-chip"
+              style={{ background: col.color + '15', color: col.color }}
+            >
               {byStatus(col.status).length} {col.label}
             </span>
           ))}
