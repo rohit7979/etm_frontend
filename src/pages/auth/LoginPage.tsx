@@ -20,14 +20,11 @@ type LoginFormData = z.infer<typeof loginSchema>;
 // ─── Component ────────────────────────────────────────────────────────────────
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login, user } = useAuth();
+
+  // ── ALL hooks must be called unconditionally before any early return ──
+  const { login, user, isLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Redirect already-authenticated users away from login page
-  if (user) {
-    return <Navigate to={user.role === 'admin' ? '/admin/dashboard' : '/employee/dashboard'} replace />;
-  }
 
   const {
     register,
@@ -37,20 +34,41 @@ const LoginPage = () => {
     resolver: zodResolver(loginSchema),
   });
 
+  // ── Early returns AFTER every hook ──
+
+  // While AuthContext is restoring the session from localStorage / API,
+  // show a minimal full-screen loader so the user doesn't see the login form.
+  if (isLoading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner" />
+        <p className="loading-text">Please wait…</p>
+      </div>
+    );
+  }
+
+  // Already authenticated → redirect to the correct dashboard immediately.
+  if (user) {
+    return (
+      <Navigate
+        to={user.role === 'admin' ? '/admin/dashboard' : '/employee/dashboard'}
+        replace
+      />
+    );
+  }
+
+  // ── Form submit handler ───────────────────────────────────────────────────
   const onSubmit = async (data: LoginFormData) => {
     setIsSubmitting(true);
     try {
       const response = await loginUser(data);
       login(response.token, response.user);
       toast.success(`Welcome back, ${response.user.name}!`);
-      // Redirect based on role
-      if (response.user.role === 'admin') {
-        navigate('/admin/dashboard', { replace: true });
-      } else {
-        navigate('/employee/dashboard', { replace: true });
-      }
+      navigate(
+        response.user.role === 'admin' ? '/admin/dashboard' : '/employee/dashboard',
+        { replace: true }
+      );
     } catch (err: unknown) {
-      // Robustly extract error message from Axios or generic errors
       let message = 'Login failed. Please try again.';
       if (axios.isAxiosError(err)) {
         message = err.response?.data?.message ?? err.message ?? message;
@@ -63,6 +81,7 @@ const LoginPage = () => {
     }
   };
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="auth-page">
       <Toaster position="top-right" />
@@ -125,9 +144,7 @@ const LoginPage = () => {
                   autoComplete="email"
                   {...register('email')}
                 />
-                {errors.email && (
-                  <p className="auth-error">{errors.email.message}</p>
-                )}
+                {errors.email && <p className="auth-error">{errors.email.message}</p>}
               </div>
 
               {/* Password Field */}
@@ -153,9 +170,7 @@ const LoginPage = () => {
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
-                {errors.password && (
-                  <p className="auth-error">{errors.password.message}</p>
-                )}
+                {errors.password && <p className="auth-error">{errors.password.message}</p>}
               </div>
 
               {/* Submit Button */}
@@ -166,15 +181,9 @@ const LoginPage = () => {
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
-                  <>
-                    <Loader2 size={18} className="auth-spinner-icon" />
-                    Signing in…
-                  </>
+                  <><Loader2 size={18} className="auth-spinner-icon" /> Signing in…</>
                 ) : (
-                  <>
-                    <LogIn size={18} />
-                    Sign In
-                  </>
+                  <><LogIn size={18} /> Sign In</>
                 )}
               </button>
             </form>
