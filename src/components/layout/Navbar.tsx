@@ -36,6 +36,12 @@ export const Navbar = ({ toggleSidebar, isSidebarOpen }: NavbarProps) => {
     navigate('/login');
   };
 
+  const formatRole = (role?: string) => {
+    if (role === 'SUPER_ADMIN') return 'Super Admin';
+    if (role === 'COMPANY_ADMIN' || role === 'admin') return 'Company Admin';
+    return 'Employee';
+  };
+
   return (
     <header className="fixed top-0 right-0 left-0 z-40 h-14 border-b border-border bg-white">
       <div
@@ -73,11 +79,19 @@ export const Navbar = ({ toggleSidebar, isSidebarOpen }: NavbarProps) => {
                 <div className="hidden sm:flex flex-col items-start leading-none">
                   <span className="text-xs font-medium text-gray-900">{user.name}</span>
                 </div>
+                {user.company && (
+                  <Badge
+                    variant="outline"
+                    className="hidden md:inline-flex text-[10px] px-1.5 py-0 border-indigo-200 text-indigo-700 bg-indigo-50 font-medium"
+                  >
+                    {user.company.name}
+                  </Badge>
+                )}
                 <Badge
                   variant="secondary"
-                  className="hidden sm:inline-flex capitalize text-[10px] px-1.5 py-0"
+                  className="hidden sm:inline-flex text-[10px] px-1.5 py-0"
                 >
-                  {user.role}
+                  {formatRole(user.role)}
                 </Badge>
                 <ChevronDown size={14} className="text-gray-400 hidden sm:block" />
               </Button>

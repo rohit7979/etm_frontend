@@ -1,11 +1,35 @@
-// ─── Core Entities ────────────────────────────────────────────────────────────
+export type UserRole = 'SUPER_ADMIN' | 'COMPANY_ADMIN' | 'EMPLOYEE' | 'admin' | 'employee';
+export type Status = 'active' | 'inactive' | 'PENDING_INVITE' | 'ACTIVE' | 'DEACTIVATED';
+
+export interface Company {
+  _id: string;
+  name: string;
+  email: string;
+  status: Status;
+  stats?: {
+    adminCount: number;
+    activeAdminCount?: number;
+    pendingAdminCount?: number;
+    employeeCount: number;
+    totalUsers: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'employee';
+  role: UserRole;
+  status?: Status;
+  company?: {
+    id: string;
+    name: string;
+    status: Status;
+  } | null;
 }
+
 
 export interface Training {
   _id: string;
@@ -151,7 +175,7 @@ export interface AnalyticsData {
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export interface AuthResponse {
-  token: string;
+  token?: string;
   user: User;
 }
 

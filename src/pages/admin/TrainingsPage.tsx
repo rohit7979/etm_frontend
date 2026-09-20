@@ -21,7 +21,7 @@ const trainingSchema = z.object({
   description: z.string().min(10, 'Description must be at least 10 characters').max(1000, 'Description too long'),
   category: z.string().min(2, 'Category is required').max(60, 'Category too long'),
   durationHours: z
-    .number({ invalid_type_error: 'Duration must be a number' })
+    .number({ message: 'Duration must be a number' })
     .min(0.5, 'Minimum 0.5 hours')
     .max(500, 'Maximum 500 hours'),
 });

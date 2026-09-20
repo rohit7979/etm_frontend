@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, BookOpen, ClipboardList,
   BarChart3, ChevronLeft, ChevronRight, GraduationCap, X,
+  Building2, Users
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
@@ -15,8 +16,14 @@ interface SidebarProps {
   setIsOpen: (open: boolean) => void;
 }
 
-const adminNavItems = [
+const superAdminNavItems = [
+  { label: 'Platform Overview', path: '/super-admin/dashboard', icon: LayoutDashboard },
+  { label: 'Companies',         path: '/super-admin/companies', icon: Building2       },
+];
+
+const companyAdminNavItems = [
   { label: 'Dashboard',   path: '/admin/dashboard',   icon: LayoutDashboard },
+  { label: 'Employees',   path: '/admin/employees',   icon: Users           },
   { label: 'Trainings',   path: '/admin/trainings',   icon: BookOpen        },
   { label: 'Assignments', path: '/admin/assignments', icon: ClipboardList   },
   { label: 'Progress',    path: '/admin/progress',    icon: BarChart3       },
@@ -34,7 +41,7 @@ const NavList = ({
   collapsed,
   onNavigate,
 }: {
-  items: typeof adminNavItems;
+  items: typeof companyAdminNavItems;
   collapsed: boolean;
   onNavigate?: () => void;
 }) => {
@@ -79,15 +86,20 @@ const NavList = ({
 };
 
 // ─── Brand logo block ─────────────────────────────────────────────────────────
-const Brand = ({ collapsed }: { collapsed: boolean }) => (
+const Brand = ({ collapsed, title }: { collapsed: boolean; title?: string }) => (
   <div className={cn('flex items-center h-14 px-3 border-b border-border shrink-0', collapsed ? 'justify-center' : 'gap-2.5')}>
-    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#c52031] text-white shrink-0">
+    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#c52031] text-white shrink-0 font-bold text-xs">
       <GraduationCap size={18} />
     </div>
     {!collapsed && (
-      <span className="font-semibold text-sm text-gray-900 leading-tight truncate">
-        ETM System
-      </span>
+      <div className="flex flex-col overflow-hidden">
+        <span className="font-semibold text-sm text-gray-900 leading-tight truncate">
+          {title || 'ETM System'}
+        </span>
+        <span className="text-[10px] text-gray-400 font-medium tracking-wide uppercase">
+          Training Hub
+        </span>
+      </div>
     )}
   </div>
 );
@@ -95,7 +107,18 @@ const Brand = ({ collapsed }: { collapsed: boolean }) => (
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
   const { user } = useAuth();
-  const navItems = user?.role === 'admin' ? adminNavItems : employeeNavItems;
+  
+  const navItems =
+    user?.role === 'SUPER_ADMIN'
+      ? superAdminNavItems
+      : (user?.role === 'COMPANY_ADMIN' || user?.role === 'admin')
+      ? companyAdminNavItems
+      : employeeNavItems;
+
+  const brandTitle =
+    user?.role === 'SUPER_ADMIN'
+      ? 'ETM Platform'
+      : user?.company?.name || 'ETM System';
 
   // Close mobile drawer on Escape key
   useEffect(() => {
@@ -124,7 +147,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <Brand collapsed={false} />
+        <Brand collapsed={false} title={brandTitle} />
 
         {/* Close button — mobile only */}
         <button
@@ -148,7 +171,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
           isOpen ? 'w-[235px]' : 'w-16'
         )}
       >
-        <Brand collapsed={!isOpen} />
+        <Brand collapsed={!isOpen} title={brandTitle} />
 
         <NavList items={navItems} collapsed={!isOpen} />
 

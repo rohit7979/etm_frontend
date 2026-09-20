@@ -9,6 +9,7 @@ export const BASE_URL =
 const api = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 });
 
 // ─── Request: attach Bearer token ────────────────────────────────────────────
@@ -24,18 +25,18 @@ api.interceptors.response.use(
   (error) => {
     const requestUrl: string = error.config?.url ?? '';
 
-    // Endpoints that are allowed to return 401 without triggering a logout:
-    //  • /auth/login    — wrong credentials → let the form show the error
-    //  • /auth/register — shouldn't 401 but guard anyway
-    //  • /auth/me       — AuthContext owns this response: it decides whether to
-    //                     log out (expired token) or keep the cached session
-    //                     (backend temporarily unavailable)
-    const isHandledLocally =
-      requestUrl.includes('/auth/login') ||
-      requestUrl.includes('/auth/register') ||
-      requestUrl.includes('/auth/me');
+    // Endpoints that are allowed to return 401 without triggering a global redirect to /login:
+    // Any /auth/* request is handled by the calling page/context
+    const isAuthEndpoint = requestUrl.includes('/auth/');
 
-    if (error.response?.status === 401 && !isHandledLocally) {
+    // Public pages where users might be unauthenticated
+    const isPublicPage =
+      window.location.pathname.startsWith('/login') ||
+      window.location.pathname.startsWith('/reset-password') ||
+      window.location.pathname.startsWith('/accept-invite') ||
+      window.location.pathname.startsWith('/forgot-password');
+
+    if (error.response?.status === 401 && !isAuthEndpoint && !isPublicPage) {
       // Clear both the token AND the cached user so the next app load
       // doesn't incorrectly restore a stale session.
       localStorage.removeItem('etm_token');

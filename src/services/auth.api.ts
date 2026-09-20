@@ -6,25 +6,63 @@ export interface LoginPayload {
   password: string;
 }
 
-export interface RegisterPayload {
-  name: string;
+export interface VerifyInviteResponse {
   email: string;
-  password: string;
-  role: 'admin' | 'employee';
+  name: string;
+  role: string;
+  companyName?: string | null;
 }
 
 export const loginUser = async (payload: LoginPayload): Promise<AuthResponse> => {
-  const { data } = await api.post<AuthResponse>('/auth/login', payload);
-  return data;
+  const res = await api.post<any>('/auth/login', payload);
+  return res.data?.data || res.data;
 };
 
-export const registerUser = async (payload: RegisterPayload): Promise<AuthResponse> => {
-  const { data } = await api.post<AuthResponse>('/auth/register', payload);
-  return data;
+export const registerUser = async (_payload: any): Promise<AuthResponse> => {
+  throw new Error('Public registration is disabled. Contact your administrator.');
 };
 
 export const fetchMe = async (): Promise<User> => {
-  // Backend returns { user: { id, name, email, role } }
-  const { data } = await api.get<{ user: User }>('/auth/me');
-  return data.user;
+  const res = await api.get<any>('/auth/me');
+  return res.data?.data || res.data?.user || res.data;
+};
+
+/**
+ * Verify invite token before rendering accept-invite page
+ */
+export const verifyInviteToken = async (token: string): Promise<VerifyInviteResponse> => {
+  const res = await api.get<any>(`/auth/invite/${token}`);
+  return res.data?.data || res.data;
+};
+
+/**
+ * Accept invite and set new password
+ */
+export const acceptInvite = async (token: string, password: string): Promise<{ message: string; email?: string }> => {
+  const res = await api.post<any>(`/auth/invite/${token}/accept`, { password });
+  return res.data;
+};
+
+/**
+ * Request a password reset link
+ */
+export const requestPasswordReset = async (email: string): Promise<{ message: string }> => {
+  const res = await api.post<any>('/auth/forgot-password', { email });
+  return res.data;
+};
+
+/**
+ * Verify password reset token
+ */
+export const verifyResetToken = async (token: string): Promise<{ valid: boolean; email: string }> => {
+  const res = await api.get<any>(`/auth/reset-password/${token}`);
+  return res.data?.data || res.data;
+};
+
+/**
+ * Reset password with valid token
+ */
+export const resetPassword = async (token: string, password: string): Promise<{ message: string }> => {
+  const res = await api.post<any>(`/auth/reset-password/${token}`, { password });
+  return res.data;
 };
