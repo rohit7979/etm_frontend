@@ -1,10 +1,18 @@
 import axios from 'axios';
 import { getToken } from '../utils/token';
 
-export const BASE_URL =
-  import.meta.env.VITE_ENV != undefined && import.meta.env.VITE_ENV === 'LOCAL'
+const getBaseUrl = (): string => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  if (envUrl) {
+    const clean = envUrl.replace(/\/+$/, '');
+    return clean.endsWith('/api') || clean.endsWith('/api/v1') ? clean : `${clean}/api`;
+  }
+  return import.meta.env.VITE_ENV === 'LOCAL'
     ? 'http://localhost:5000/api'
-    : 'https://api.etm.com/api';
+    : 'https://employee-training-management-system-production.up.railway.app/api';
+};
+
+export const BASE_URL = getBaseUrl();
 
 const api = axios.create({
   baseURL: BASE_URL,

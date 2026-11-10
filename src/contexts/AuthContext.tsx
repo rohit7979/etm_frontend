@@ -44,7 +44,7 @@ interface AuthContextValue {
   user: User | null;
   token?: string | null;
   isLoading: boolean;
-  login: (userOrToken: User | string, optionalUser?: User) => void;
+  login: (userOrToken?: User | string | null, optionalUser?: User) => void;
   logout: () => void;
 }
 
@@ -92,8 +92,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // ── Auth actions ──
-  const login = (first: User | string, second?: User) => {
-    const userToSet = (typeof first === 'object' ? first : second) as User;
+  const login = (first?: User | string | null, second?: User) => {
+    let userToSet: User | null = null;
+    if (typeof first === 'string') {
+      setToken(first);
+      setTokenState(first);
+      userToSet = second || null;
+    } else if (first && typeof first === 'object') {
+      userToSet = first;
+    } else if (second) {
+      userToSet = second;
+    }
     if (userToSet) {
       writeStoredUser(userToSet);
       setUser(userToSet);

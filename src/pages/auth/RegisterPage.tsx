@@ -67,7 +67,11 @@ const RegisterPage = () => {
       const { confirmPassword: _cp, ...payload } = data;
       void _cp; // suppress unused var warning
       const response = await registerUser(payload);
-      login(response.token, response.user);
+      if (response.token) {
+        login(response.token, response.user);
+      } else {
+        login(response.user);
+      }
       toast.success('Account created successfully! Welcome aboard 🎉');
       if (response.user.role === 'admin') {
         navigate('/admin/dashboard', { replace: true });
